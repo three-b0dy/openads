@@ -1,12 +1,12 @@
 import Stripe from "stripe"
 
 export interface StripeConfig {
-  STRIPE_SECRET_KEY: string
+  STRIPE_SECRET_KEY?: string
   STRIPE_PLATFORM_FEE_PERCENT: number
 }
 
 export function createStripeClient(config: StripeConfig) {
-  return new Stripe(config.STRIPE_SECRET_KEY, {
+  return new Stripe(config.STRIPE_SECRET_KEY || "dummy_optional_key", {
     apiVersion: "2026-04-22.dahlia",
   })
 }

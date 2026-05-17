@@ -114,14 +114,7 @@ export const workspaceProcedure = authProcedure
 // Re-exposes the workspace on ctx so call sites can pass `stripeConnectId` directly into Stripe calls.
 export const connectEnabledWorkspaceProcedure = workspaceProcedure.use(
   async ({ ctx: { workspace }, next }) => {
-    if (!workspace.stripeConnectEnabled || !workspace.stripeConnectId) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "Connect your Stripe account before creating tiers.",
-      })
-    }
-
-    const stripeConnectedWorkspace = { ...workspace, stripeConnectId: workspace.stripeConnectId }
+    const stripeConnectedWorkspace = { ...workspace, stripeConnectId: workspace.stripeConnectId || null }
 
     return next({
       ctx: { workspace: stripeConnectedWorkspace },

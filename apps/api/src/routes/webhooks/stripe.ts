@@ -14,6 +14,9 @@ import { stripe } from "../../services/stripe"
 export const stripeWebhookRoute = new Hono()
 
 const constructStripeEvent = (body: string, signature: string) => {
+  if (!env.STRIPE_CONNECT_WEBHOOK_SECRET) {
+    throw new Error("Stripe webhook secret is not configured")
+  }
   return stripe.webhooks.constructEvent(body, signature, env.STRIPE_CONNECT_WEBHOOK_SECRET)
 }
 

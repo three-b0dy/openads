@@ -3,9 +3,11 @@ import { z } from "zod"
 
 export const env = createEnv({
   server: {
-    AUTOSEND_API_KEY: z.string(),
-    AUTOSEND_FROM_EMAIL: z.email(),
-    AUTOSEND_FROM_NAME: z.string().default("OpenAds"),
+    AWS_SES_REGION: z.string().default("us-east-1"),
+    AWS_SES_ACCESS_KEY_ID: z.string().optional().or(z.literal("")),
+    AWS_SES_SECRET_ACCESS_KEY: z.string().optional().or(z.literal("")),
+    EMAIL_FROM_ADDRESS: z.string().email().optional().or(z.literal("")),
+    EMAIL_FROM_NAME: z.string().default("OpenAds"),
   },
 
   runtimeEnv: process.env,

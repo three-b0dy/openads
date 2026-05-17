@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: openads_db
+    environment:
+      POSTGRES_DB: openads
+      POSTGRES_USER: openads
+      POSTGRES_PASSWORD: C0bSChqJj9i2HsVverMS
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # 映射到主机 5433 防止与 OrbStack 等冲突
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openads -d openads"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  openads:
+    build: .
+    container_name: openads_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://openads:C0bSChqJj9i2HsVverMS@postgres:5432/openads?sslmode=disable
+      - NODE_ENV=production
+    ports:
+      - "3001:3001" # API 端口
+      - "5183:5183" # Web 前端端口
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

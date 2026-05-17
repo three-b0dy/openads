@@ -146,7 +146,7 @@ export const adRouter = router({
         })
 
         await emails.send({
-          to: { email: advertiserEmail, name: ad.subscription.advertiser.name },
+          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
           subject: `Your ad on ${workspace.name} is now live`,
           html,
           text,
@@ -199,7 +199,7 @@ export const adRouter = router({
         })
 
         await emails.send({
-          to: { email: advertiserEmail, name: ad.subscription.advertiser.name },
+          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
           subject: `Your ad on ${workspace.name} was not approved`,
           html,
           text,
@@ -231,7 +231,7 @@ export const adRouter = router({
         })
 
         await emails.send({
-          to: { email: advertiserEmail, name: ad.subscription.advertiser.name },
+          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
           subject: "Changes requested on your ad",
           html,
           text,
@@ -572,7 +572,7 @@ export const adRouter = router({
                 .filter(r => r.user.email)
                 .map(r =>
                   emails.send({
-                    to: { email: r.user.email!, name: r.user.name },
+                    to: r.user.name ? `${r.user.name} <${r.user.email}>` : r.user.email!,
                     subject: `New ad pending review on ${workspace.name}`,
                     html,
                     text,

@@ -15,7 +15,7 @@ export const tierPriceRouter = router({
         where: { id: input.tierId, workspaceId: workspace.id },
       })
 
-      if (!tier || !tier.stripeProductId) {
+      if (!tier) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Tier not found." })
       }
 
@@ -49,26 +49,30 @@ export const tierPriceRouter = router({
         },
       })
 
-      const stripePrice = await createTierPrice(stripe, {
-        connectedAccountId: workspace.stripeConnectId,
-        productId: tier.stripeProductId,
-        unitAmount: input.amount,
-        currency: input.currency,
-        interval: input.interval,
-        intervalCount: input.intervalCount,
-        metadata: {
-          workspaceId: workspace.id,
-          tierId: tier.id,
-          tierPriceId: tierPrice.id,
+      if (workspace.stripeConnectEnabled && workspace.stripeConnectId && tier.stripeProductId) {
+        const stripePrice = await createTierPrice(stripe, {
+          connectedAccountId: workspace.stripeConnectId,
+          productId: tier.stripeProductId,
+          unitAmount: input.amount,
+          currency: input.currency,
           interval: input.interval,
-          intervalCount: String(input.intervalCount),
-        },
-      })
+          intervalCount: input.intervalCount,
+          metadata: {
+            workspaceId: workspace.id,
+            tierId: tier.id,
+            tierPriceId: tierPrice.id,
+            interval: input.interval,
+            intervalCount: String(input.intervalCount),
+          },
+        })
 
-      return await db.tierPrice.update({
-        where: { id: tierPrice.id },
-        data: { stripePriceId: stripePrice.id },
-      })
+        return await db.tierPrice.update({
+          where: { id: tierPrice.id },
+          data: { stripePriceId: stripePrice.id },
+        })
+      }
+
+      return tierPrice
     }),
 
   // Soft delete: archive the Stripe Price and flip isActive. Existing Subscriptions
@@ -85,7 +89,7 @@ export const tierPriceRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" })
       }
 
-      if (tierPrice.stripePriceId) {
+      if (tierPrice.stripePriceId && workspace.stripeConnectId) {
         await archivePrice(stripe, workspace.stripeConnectId, tierPrice.stripePriceId)
       }
 

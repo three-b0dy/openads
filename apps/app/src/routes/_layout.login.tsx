@@ -20,6 +20,8 @@ export const Route = createFileRoute("/_layout/login")({
   component: App,
 })
 
+import { EmailLoginForm } from "~/components/auth/email-login-form"
+
 function App() {
   const { callbackURL } = Route.useSearch()
 
@@ -28,12 +30,9 @@ function App() {
       <HeaderTitle>Login to {siteConfig.name}.</HeaderTitle>
       <HeaderDescription>{siteConfig.tagline}</HeaderDescription>
 
-      <LoginButton
-        provider="google"
-        callbackURL={callbackURL}
-        prefix={<img src="/google.svg" alt="" width={20} height={20} />}
-        className="mt-6"
-      />
+      <div className="mt-6 flex flex-col gap-4 w-full max-w-sm">
+        <EmailLoginForm callbackURL={callbackURL} />
+      </div>
     </Header>
   )
 }

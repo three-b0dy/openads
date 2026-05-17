@@ -1,4 +1,4 @@
-import { adminClient, lastLoginMethodClient } from "better-auth/client/plugins"
+import { adminClient, lastLoginMethodClient, magicLinkClient } from "better-auth/client/plugins"
 import { createAuthClient as createBetterAuthClient } from "better-auth/react"
 
 export interface AuthClientConfig {
@@ -10,7 +10,7 @@ export function createAuthClient(config: AuthClientConfig) {
   return createBetterAuthClient({
     baseURL: config.baseURL,
     credentials: config.credentials || "include",
-    plugins: [adminClient(), lastLoginMethodClient()],
+    plugins: [adminClient(), lastLoginMethodClient(), magicLinkClient()],
   })
 }
 

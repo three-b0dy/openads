@@ -5,14 +5,14 @@ import { AdPendingReview, type AdPendingReviewProps } from "./templates/ad-pendi
 import { AdRejected, type AdRejectedProps } from "./templates/ad-rejected"
 import { MemberInvite, type MemberInviteProps } from "./templates/member-invite"
 
+import { MagicLink, type MagicLinkProps } from "./templates/magic-link"
+
 export { createEmailClient, type EmailClient } from "./client"
 export { renderTemplate, type RenderResult } from "./render"
 export type {
   EmailClientConfig,
   EmailRecipient,
   SendEmailInput,
-  SendTemplateInput,
-  UpsertContactInput,
 } from "./types"
 export type {
   AdApprovedProps,
@@ -20,6 +20,11 @@ export type {
   AdPendingReviewProps,
   AdRejectedProps,
   MemberInviteProps,
+  MagicLinkProps,
+}
+
+export async function renderMagicLink(props: MagicLinkProps): Promise<RenderResult> {
+  return renderTemplate(MagicLink(props))
 }
 
 export async function renderAdPendingReview(props: AdPendingReviewProps): Promise<RenderResult> {

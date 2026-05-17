@@ -68,17 +68,20 @@ export const tierRouter = router({
           },
         })
 
-        const product = await createTierProduct(stripe, {
-          connectedAccountId: workspace.stripeConnectId,
-          name,
-          description,
-          metadata: {
-            workspaceId: workspace.id,
-            tierId: tier.id,
-            weight: String(weight),
-          },
-          features,
-        })
+        let product: any = null
+        if (workspace.stripeConnectEnabled && workspace.stripeConnectId) {
+          product = await createTierProduct(stripe, {
+            connectedAccountId: workspace.stripeConnectId,
+            name,
+            description,
+            metadata: {
+              workspaceId: workspace.id,
+              tierId: tier.id,
+              weight: String(weight),
+            },
+            features,
+          })
+        }
 
         // One at a time so each local id can be stamped onto its Stripe Price
         // metadata. Partial failures roll back via the catch below.
@@ -95,36 +98,40 @@ export const tierRouter = router({
               },
             })
 
-            const stripePrice = await createTierPrice(stripe, {
-              connectedAccountId: workspace.stripeConnectId,
-              productId: product.id,
-              unitAmount: price.amount,
-              currency: price.currency,
-              interval: price.interval,
-              intervalCount: price.intervalCount,
-              metadata: {
-                workspaceId: workspace.id,
-                tierId: tier.id,
-                tierPriceId: tierPriceRow.id,
+            if (workspace.stripeConnectEnabled && workspace.stripeConnectId && product) {
+              const stripePrice = await createTierPrice(stripe, {
+                connectedAccountId: workspace.stripeConnectId,
+                productId: product.id,
+                unitAmount: price.amount,
+                currency: price.currency,
                 interval: price.interval,
-                intervalCount: String(price.intervalCount),
-              },
-            })
+                intervalCount: price.intervalCount,
+                metadata: {
+                  workspaceId: workspace.id,
+                  tierId: tier.id,
+                  tierPriceId: tierPriceRow.id,
+                  interval: price.interval,
+                  intervalCount: String(price.intervalCount),
+                },
+              })
 
-            createdStripePriceIds.push(stripePrice.id)
+              createdStripePriceIds.push(stripePrice.id)
 
-            await db.tierPrice.update({
-              where: { id: tierPriceRow.id },
-              data: { stripePriceId: stripePrice.id },
-            })
+              await db.tierPrice.update({
+                where: { id: tierPriceRow.id },
+                data: { stripePriceId: stripePrice.id },
+              })
+            }
           }
         } catch (err) {
           // Best-effort cleanup. We swallow secondary errors so the user sees the
           // original failure, not the rollback noise.
-          await Promise.allSettled([
-            ...createdStripePriceIds.map(id => archivePrice(stripe, workspace.stripeConnectId, id)),
-            archiveTierProduct(stripe, workspace.stripeConnectId, product.id),
-          ])
+          if (workspace.stripeConnectEnabled && workspace.stripeConnectId) {
+            await Promise.allSettled([
+              ...createdStripePriceIds.map(id => archivePrice(stripe, workspace.stripeConnectId!, id)),
+              ...(product ? [archiveTierProduct(stripe, workspace.stripeConnectId!, product.id)] : []),
+            ])
+          }
           await db.tierPrice.deleteMany({ where: { tierId: tier.id } })
           await db.tier.delete({ where: { id: tier.id } })
           throw err
@@ -133,7 +140,7 @@ export const tierRouter = router({
         // Stamp the Stripe Product id back onto the Tier and return with prices nested.
         return await db.tier.update({
           where: { id: tier.id },
-          data: { stripeProductId: product.id },
+          data: { stripeProductId: product?.id || null },
           include: {
             prices: {
               orderBy: [{ isActive: "desc" }, { interval: "asc" }, { amount: "asc" }],
@@ -161,7 +168,7 @@ export const tierRouter = router({
         }
 
         // Sync Stripe Product when product-level fields change.
-        if (existing.stripeProductId) {
+        if (existing.stripeProductId && workspace.stripeConnectId) {
           const featuresChanged =
             features !== undefined &&
             (features.length !== existing.features.length ||
@@ -210,13 +217,12 @@ export const tierRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" })
       }
 
-      if (existing.stripeProductId) {
+      if (existing.stripeProductId && workspace.stripeConnectId) {
         await archiveTierProduct(stripe, workspace.stripeConnectId, existing.stripeProductId)
       }
 
-      // Archive every active Stripe Price under this tier (Stripe-side).
       for (const tierPrice of existing.prices) {
-        if (tierPrice.stripePriceId) {
+        if (tierPrice.stripePriceId && workspace.stripeConnectId) {
           await archivePrice(stripe, workspace.stripeConnectId, tierPrice.stripePriceId)
         }
       }

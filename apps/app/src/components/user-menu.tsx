@@ -22,11 +22,11 @@ import { NavButton, NavButtonSkeleton } from "~/components/nav-button"
 import { useWorkspace } from "~/contexts/workspace-context"
 import { authClient } from "~/lib/auth"
 import { trpc } from "~/lib/trpc"
+import { env } from "~/env"
 
 export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
   const router = useRouter()
   const workspace = useWorkspace()
-  const { open: openSupport } = useSupport()
 
   const { data: user, isFetching } = trpc.user.me.useQuery()
 
@@ -83,10 +83,7 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
           </a>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onSelect={() => openSupport()}>
-          <LifeBuoyIcon />
-          Support
-        </DropdownMenuItem>
+        {env.VITE_COSSISTANT_PUBLIC_KEY && <SupportMenuItem />}
 
         <DropdownMenuSeparator />
 
@@ -96,5 +93,15 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+const SupportMenuItem = () => {
+  const { open } = useSupport()
+  return (
+    <DropdownMenuItem onSelect={() => open()}>
+      <LifeBuoyIcon />
+      Support
+    </DropdownMenuItem>
   )
 }

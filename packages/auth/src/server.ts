@@ -1,12 +1,11 @@
 import { db } from "@openads/db"
 import { betterAuth } from "better-auth"
 import { prismaAdapter } from "better-auth/adapters/prisma"
-import { admin, lastLoginMethod } from "better-auth/plugins"
+import { admin, lastLoginMethod, magicLink } from "better-auth/plugins"
 
 export interface AuthConfig {
-  GOOGLE_CLIENT_ID: string
-  GOOGLE_CLIENT_SECRET: string
   APP_URL: string
+  onSendMagicLink?: (email: string, url: string) => Promise<void>
 }
 
 export function createAuthServer(config: AuthConfig) {
@@ -14,13 +13,6 @@ export function createAuthServer(config: AuthConfig) {
     database: prismaAdapter(db, {
       provider: "postgresql",
     }),
-
-    socialProviders: {
-      google: {
-        clientId: config.GOOGLE_CLIENT_ID,
-        clientSecret: config.GOOGLE_CLIENT_SECRET,
-      },
-    },
 
     account: {
       accountLinking: {
@@ -46,7 +38,19 @@ export function createAuthServer(config: AuthConfig) {
     },
 
     trustedOrigins: [config.APP_URL],
-    plugins: [admin(), lastLoginMethod()],
+    plugins: [
+      admin(),
+      lastLoginMethod(),
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          if (config.onSendMagicLink) {
+            await config.onSendMagicLink(email, url)
+          } else {
+            console.log(`[Magic Link] to ${email}: ${url}`)
+          }
+        },
+      }),
+    ],
   })
 }
 

@@ -36,15 +36,20 @@ function useFrameBuster() {
 function RootComponent() {
   useFrameBuster()
 
-  return (
-    <SupportProvider publicKey={env.VITE_COSSISTANT_PUBLIC_KEY}>
-      <TooltipProvider delayDuration={100}>
-        <Outlet />
+  const content = (
+    <TooltipProvider delayDuration={100}>
+      <Outlet />
+      {env.VITE_OPENPANEL_CLIENT_ID ? <Analytics clientId={env.VITE_OPENPANEL_CLIENT_ID} /> : null}
+      <Toaster />
+    </TooltipProvider>
+  )
 
-        <Analytics clientId={env.VITE_OPENPANEL_CLIENT_ID} />
-        <Toaster />
-      </TooltipProvider>
+  return env.VITE_COSSISTANT_PUBLIC_KEY ? (
+    <SupportProvider publicKey={env.VITE_COSSISTANT_PUBLIC_KEY}>
+      {content}
     </SupportProvider>
+  ) : (
+    content
   )
 }
 

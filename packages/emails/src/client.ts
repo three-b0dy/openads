@@ -1,49 +1,56 @@
-import { Autosend } from "autosendjs"
-import type {
-  EmailClientConfig,
-  SendEmailInput,
-  SendTemplateInput,
-  UpsertContactInput,
-} from "./types"
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
+import type { EmailClientConfig, SendEmailInput } from "./types"
 
 export function createEmailClient(config: EmailClientConfig) {
-  const autosend = new Autosend(config.apiKey, {
-    maxRetries: config.maxRetries ?? 3,
+  const sesClient = new SESClient({
+    region: config.region,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
   })
 
   async function send(input: SendEmailInput) {
-    return autosend.emails.send({
-      from: input.from ?? config.from,
-      to: input.to,
-      subject: input.subject,
-      html: input.html,
-      text: input.text,
-      replyTo: input.replyTo,
-      cc: input.cc,
-      bcc: input.bcc,
-    })
-  }
+    const toAddresses = Array.isArray(input.to) ? input.to : [input.to]
+    const ccAddresses = input.cc ? (Array.isArray(input.cc) ? input.cc : [input.cc]) : []
+    const bccAddresses = input.bcc ? (Array.isArray(input.bcc) ? input.bcc : [input.bcc]) : []
 
-  async function sendTemplate(input: SendTemplateInput) {
-    return autosend.emails.send({
-      from: input.from ?? config.from,
-      to: input.to,
-      subject: input.subject ?? "",
-      templateId: input.templateId,
-      dynamicData: input.dynamicData,
-      replyTo: input.replyTo,
+    const command = new SendEmailCommand({
+      Source: input.from ?? config.from,
+      Destination: {
+        ToAddresses: toAddresses,
+        CcAddresses: ccAddresses.length > 0 ? ccAddresses : undefined,
+        BccAddresses: bccAddresses.length > 0 ? bccAddresses : undefined,
+      },
+      Message: {
+        Subject: {
+          Data: input.subject,
+          Charset: "UTF-8",
+        },
+        Body: {
+          Html: {
+            Data: input.html,
+            Charset: "UTF-8",
+          },
+          ...(input.text
+            ? {
+                Text: {
+                  Data: input.text,
+                  Charset: "UTF-8",
+                },
+              }
+            : {}),
+        },
+      },
+      ReplyToAddresses: input.replyTo ? [input.replyTo] : undefined,
     })
-  }
 
-  async function upsertContact(input: UpsertContactInput) {
-    return autosend.contacts.upsert(input)
+    const response = await sesClient.send(command)
+    return response
   }
 
   return {
-    autosend,
     send,
-    sendTemplate,
-    upsertContact,
   }
 }
 
