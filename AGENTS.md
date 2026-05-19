@@ -4,27 +4,27 @@
 
 OpenAds is a **self-serve subscription advertising platform for content publishers**. Publishers configure ad tiers and custom creative fields in the OpenAds dashboard; advertisers find the publisher's site, click a "Subscribe to advertise" widget, pay through Stripe, fill in a creative form, and wait for approval. Once approved, their ad is available via the OpenAds API for the publisher to render on their own site however they want.
 
-**OpenAds does not render ads.** It owns: subscription billing (Stripe Connect with destination charges), advertiser onboarding, the approval queue, the weighted-rotation selection algorithm, impression/click tracking, and the embeddable tier selector. Publishers render ads themselves using a future SDK (which is **out of scope** at v1 — see deferred list below). The only embeddable surface OpenAds ships today is `/embed` (the tier selector iframe for advertiser acquisition).
+**OpenAds does not render ads.** It owns: direct subscription billing (Stripe checkout sessions), advertiser onboarding, the approval queue, the weighted-rotation selection algorithm, impression/click tracking, and the embeddable tier selector. Publishers render ads themselves using a future SDK (which is **out of scope** at v1 — see deferred list below). The only embeddable surface OpenAds ships today is `/embed` (the tier selector iframe for advertiser acquisition).
 
-The model is based on OpenAlternative's existing setup ($5k+ MRR), generalized to multi-tenant SaaS.
+The model is based on OpenAlternative's existing setup ($5k+ MRR), generalized to multi-tenant SaaS and self-hosted deployments.
 
 ## Architecture at a glance
 
-Monorepo, Bun + Turbo. Three apps and twelve packages.
+Monorepo, Bun + Turbo. Two apps and twelve packages.
 
 **Apps**
 - `apps/api` — Hono server hosting tRPC + Stripe webhooks + presigned-upload endpoints
 - `apps/app` — Publisher/advertiser dashboard (TanStack Router + tRPC)
-- `apps/landing` — Marketing site (TanStack Start, Cloudflare Workers)
+- *(Note: `apps/landing` was deleted for self-hosted single-tenant simplicity)*
 
 **Packages**
 - `@openads/db` — Prisma schema (`relationMode = "prisma"`, no migrations folder — uses `db:push`)
-- `@openads/trpc` — Routers, procedures (`authProcedure`, `workspaceProcedure`, `connectEnabledWorkspaceProcedure`, `adProcedure`), shared serving algorithm
-- `@openads/auth` — better-auth (Google OAuth)
-- `@openads/stripe` — Stripe client + product/checkout/subscription helpers
+- `@openads/trpc` — Routers, procedures (`authProcedure`, `workspaceProcedure`, `adProcedure`), shared serving algorithm
+- `@openads/auth` — better-auth (Magic Link passwordless authentication)
+- `@openads/stripe` — Stripe client + product/checkout/subscription helpers (Stripe Connect disabled)
 - `@openads/emails` — AutoSend client + React Email v6 templates
 - `@openads/s3` — S3/R2 client + favicon scraping
-- `@openads/redis` — Upstash client (rate limiting, onboarding state)
+- `@openads/redis` — Upstash client (with local in-memory fallback)
 - `@openads/logger` — Unified logger (see Logging section)
 - `@openads/ui` — Shared component library
 - `@openads/events` — Analytics (OpenPanel)
@@ -52,9 +52,9 @@ The `Ad` model has **two fixed fields** (`name`, `websiteUrl`) plus a `Meta` arr
 - **Why everything else is custom**: Different publishers need different creative shapes. OpenAds doesn't know whether you need a banner image, a tagline, a discount code, or all three. Publishers define it.
 - **Field types**: `Text`, `Textarea`, `Url`, `Number`, `Switch`, `Image` (S3-backed upload).
 
-### 4. Stripe Connect with destination charges (not direct charges)
-Subscriptions live on the **platform** Stripe account; funds transfer to the publisher's Connect account via `transfer_data.destination`; OpenAds takes `application_fee_percent`.
-- **Why**: Best fit for the future ad network (advertisers see "OpenAds" as merchant of record, consistent across publishers). Single config knob for the platform fee. OpenAds handles disputes — acceptable at low volume.
+### 4. Direct Stripe billing (not Stripe Connect)
+Subscriptions live directly on the platform's main Stripe account. There is no multi-merchant Stripe Connect onboarding or destination transfer charges.
+- **Why**: Transitioned to direct Stripe billing to support self-hosted, single-tenant, or simplified SaaS deployments. This removes the operational complexity of Stripe Connect accounts, platform splits, and merchant onboarding. All pricing is processed directly by the host's Stripe account.
 
 ### 5. Approval gating is decoupled from Stripe status
 An ad serves only if **both** `Ad.status = Approved` AND `Subscription.status ∈ (Active, Trialing)`.
@@ -105,7 +105,7 @@ The following are explicit deferrals. Don't build them without confirming a scop
 ## Build / test commands
 
 - **Install**: `bun install` (postinstall runs `db:generate`)
-- **Dev**: `bun run dev` (runs all apps) or `bunx turbo dev --filter=@openads/app` (single)
+- **Dev**: `bun run dev` (runs api and app) or `bunx turbo dev --filter=@openads/app` (single)
 - **Build**: `bun run build`
 - **Lint**: `bun run lint` (oxlint via @dirstack/kodeks)
 - **Format**: `bun run format` (oxfmt via @dirstack/kodeks)
@@ -126,7 +126,7 @@ The following are explicit deferrals. Don't build them without confirming a scop
 - **Types**: use `@t3-oss/env-core` for env vars; prefer explicit types over `any`
 - **Error handling**: try/catch for async operations; throw descriptive `TRPCError` from procedures; pass errors to the logger as `{ err }` (see Logging)
 - **React**: functional components with hooks; named exports preferred; avoid default exports
-- **tRPC**: procedures use Zod schemas; auth via `authProcedure` / `workspaceProcedure` / `connectEnabledWorkspaceProcedure` / `adProcedure`; public surface lives under `<router>.public.<procedure>`
+- **tRPC**: procedures use Zod schemas; auth via `authProcedure` / `workspaceProcedure` / `adProcedure`; public surface lives under `<router>.public.<procedure>`
 - **Email templates** (`packages/emails/src/templates/*.tsx`): **every new template must start with `/** @jsxImportSource react */`** — the apps/api Hono JSX config otherwise tries to compile React JSX as Hono JSX and fails (see Operational gotchas)
 - **Commits**: Conventional Commits enforced by commitlint (`feat:`, `fix:`, `refactor:`, `chore:`)
 
@@ -168,5 +168,5 @@ These all bit during earlier iterations; they will bite the next agent the same 
   - **Apply the pragma to every new email template.** Real fix is dropping `hono/jsx` from apps/api (we don't render Hono JSX) — a future cleanup.
 - **SSH push to GitHub timing out**: Common on restrictive networks. Workaround is SSH-over-443 (`Host github.com / Hostname ssh.github.com / Port 443 / User git` in `~/.ssh/config`) or temporarily switch to HTTPS remote.
 - **React Email v6**: imports come from `"react-email"` (single package), **not** `@react-email/components` (v5 legacy). Preview server is `@react-email/ui`, invoked via `email dev --dir src/templates` (the `--dir` flag is required because templates aren't in the default `./emails` folder).
-- **AutoSend** is the email provider (not Resend). Used by `apps/landing` for the waitlist and by `@openads/emails` for all transactional. Env vars: `AUTOSEND_API_KEY`, `AUTOSEND_FROM_EMAIL`, `AUTOSEND_FROM_NAME`, plus `AUTOSEND_WAITLIST_LIST_ID` in landing only.
+- **AutoSend** is the email provider (not Resend). Used by `@openads/emails` for all transactional. Env vars: `AUTOSEND_API_KEY`, `AUTOSEND_FROM_EMAIL`, `AUTOSEND_FROM_NAME`.
 - **Public tRPC procedures**: must use `publicProcedure` and tolerate cross-origin requests. CORS is wired in `apps/api/src/index.ts`. No API key auth required for read endpoints (ads are public) or for impression/click tracking.
