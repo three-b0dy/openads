@@ -4,6 +4,7 @@ import {
   renderAdChangesRequested,
   renderAdPendingReview,
   renderAdRejected,
+  renderAdUpdated,
 } from "@openads/emails"
 import { fetchAndUploadFavicon } from "@openads/s3/favicon"
 import { mapStripeSubscriptionStatus, toDate } from "@openads/stripe/subscription"
@@ -29,6 +30,14 @@ const optionalNoteInput = z.object({ note: z.string().trim().max(500).optional()
 const TRACKING_WINDOW_SECONDS = 60
 const IMPRESSION_LIMIT_PER_MINUTE = 30
 const CLICK_LIMIT_PER_MINUTE = 10
+
+/** Email address used for manually created ads — not a real advertiser inbox. */
+const INTERNAL_ADVERTISER_EMAIL = "manual@openads.internal"
+
+/** Returns true only when the email is a real, externally reachable address. */
+function isRealAdvertiser(email: string | null | undefined): email is string {
+  return !!email && email !== INTERNAL_ADVERTISER_EMAIL
+}
 
 const checkoutSessionInput = z.object({
   workspaceId: z.string().min(1),
@@ -123,14 +132,16 @@ export const adRouter = router({
       })
 
       const advertiserEmail = ad.subscription.advertiser.email
-      if (advertiserEmail) {
+      if (isRealAdvertiser(advertiserEmail)) {
         const { html, text } = await renderAdApproved({
           workspaceName: workspace.name,
           adName: ad.name,
         })
 
         await emails.send({
-          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
+          to: ad.subscription.advertiser.name
+            ? `${ad.subscription.advertiser.name} <${advertiserEmail}>`
+            : advertiserEmail,
           subject: `Your ad on ${workspace.name} is now live`,
           html,
           text,
@@ -167,7 +178,7 @@ export const adRouter = router({
       }
 
       const advertiserEmail = ad.subscription.advertiser.email
-      if (advertiserEmail) {
+      if (isRealAdvertiser(advertiserEmail)) {
         const { html, text } = await renderAdRejected({
           workspaceName: workspace.name,
           adName: ad.name,
@@ -175,7 +186,9 @@ export const adRouter = router({
         })
 
         await emails.send({
-          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
+          to: ad.subscription.advertiser.name
+            ? `${ad.subscription.advertiser.name} <${advertiserEmail}>`
+            : advertiserEmail,
           subject: `Your ad on ${workspace.name} was not approved`,
           html,
           text,
@@ -199,7 +212,7 @@ export const adRouter = router({
       })
 
       const advertiserEmail = ad.subscription.advertiser.email
-      if (advertiserEmail) {
+      if (isRealAdvertiser(advertiserEmail)) {
         const { html, text } = await renderAdChangesRequested({
           workspaceName: workspace.name,
           adName: ad.name,
@@ -207,8 +220,117 @@ export const adRouter = router({
         })
 
         await emails.send({
-          to: ad.subscription.advertiser.name ? `${ad.subscription.advertiser.name} <${advertiserEmail}>` : advertiserEmail,
+          to: ad.subscription.advertiser.name
+            ? `${ad.subscription.advertiser.name} <${advertiserEmail}>`
+            : advertiserEmail,
           subject: "Changes requested on your ad",
+          html,
+          text,
+        })
+      }
+
+      return updated
+    }),
+
+  update: adProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(2),
+        websiteUrl: z.url(),
+        meta: z
+          .array(z.object({ fieldId: z.string(), value: z.any() }))
+          .optional()
+          .default([]),
+        advertiserEmail: z.email().optional(),
+      }),
+    )
+    .mutation(async ({ ctx: { ad, db, emails, logger, s3, workspace }, input }) => {
+      const updated = await db.ad.update({
+        where: { id: ad.id },
+        data: { name: input.name, websiteUrl: input.websiteUrl },
+      })
+
+      // Replace all meta: delete existing rows then re-create.
+      await db.meta.deleteMany({ where: { adId: ad.id } })
+
+      if (input.meta.length > 0) {
+        const validFieldIds = new Set(
+          (
+            await db.field.findMany({ where: { workspaceId: workspace.id }, select: { id: true } })
+          ).map(f => f.id),
+        )
+
+        const filtered = input.meta.filter(m => validFieldIds.has(m.fieldId))
+
+        if (filtered.length > 0) {
+          await db.meta.createMany({
+            data: filtered.map(m => ({ adId: ad.id, fieldId: m.fieldId, value: m.value })),
+          })
+        }
+      }
+
+      // Reassign advertiser when the email changes.
+      // find-or-create so we never mutate a shared Advertiser row.
+      if (
+        input.advertiserEmail !== undefined &&
+        input.advertiserEmail !== ad.subscription.advertiser.email
+      ) {
+        let advertiser = await db.advertiser.findFirst({
+          where: { workspaceId: workspace.id, email: input.advertiserEmail },
+        })
+
+        if (!advertiser) {
+          advertiser = await db.advertiser.create({
+            data: {
+              workspaceId: workspace.id,
+              email: input.advertiserEmail,
+              name: input.advertiserEmail.split("@")[0] ?? input.advertiserEmail,
+            },
+          })
+        }
+
+        await db.subscription.update({
+          where: { id: ad.subscription.id },
+          data: { advertiserId: advertiser.id },
+        })
+      }
+
+      // Re-fetch favicon if the destination URL changed.
+      if (input.websiteUrl !== ad.websiteUrl) {
+        fetchAndUploadFavicon(s3, {
+          websiteUrl: input.websiteUrl,
+          key: `workspaces/${workspace.id}/ads/${ad.id}/favicon.png`,
+        }).catch(err => {
+          logger.warn("ad.update: favicon fetch failed", { err, adId: ad.id })
+        })
+      }
+
+      // Resolve the effective advertiser email after possible reassignment.
+      const effectiveEmail = input.advertiserEmail ?? ad.subscription.advertiser.email
+
+      // Notify the advertiser — skip internal/manual addresses.
+      if (isRealAdvertiser(effectiveEmail)) {
+        const updatedFields: Array<{ label: string; value: string }> = [
+          { label: "Name", value: input.name },
+          { label: "Destination URL", value: input.websiteUrl },
+        ]
+
+        for (const m of input.meta) {
+          const field = await db.field.findUnique({ where: { id: m.fieldId } })
+          if (field) {
+            updatedFields.push({ label: field.name, value: String(m.value ?? "") })
+          }
+        }
+
+        const { html, text } = await renderAdUpdated({
+          workspaceName: workspace.name,
+          adName: input.name,
+          updatedFields,
+        })
+
+        await emails.send({
+          to: effectiveEmail,
+          subject: `Your ad on ${workspace.name} has been updated`,
           html,
           text,
         })
@@ -236,7 +358,10 @@ export const adRouter = router({
       })
 
       if (!tier || tier.prices.length === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Tier not found or has no active price." })
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Tier not found or has no active price.",
+        })
       }
 
       let advertiser = await db.advertiser.findFirst({
@@ -279,21 +404,21 @@ export const adRouter = router({
       await fetchAndUploadFavicon(s3, {
         websiteUrl: input.websiteUrl,
         key: `workspaces/${workspace.id}/ads/${ad.id}/favicon.png`,
-      }).catch((err) => {
+      }).catch(err => {
         logger.warn("ad.manualCreate: favicon fetch failed", { err, adId: ad.id })
       })
 
       if (input.meta.length > 0) {
         const validFieldIds = new Set(
-          (await db.field.findMany({ where: { workspaceId: workspace.id }, select: { id: true } })).map(
-            (f) => f.id,
-          ),
+          (
+            await db.field.findMany({ where: { workspaceId: workspace.id }, select: { id: true } })
+          ).map(f => f.id),
         )
-        const filtered = input.meta.filter((m) => validFieldIds.has(m.fieldId))
+        const filtered = input.meta.filter(m => validFieldIds.has(m.fieldId))
 
         if (filtered.length > 0) {
           await db.meta.createMany({
-            data: filtered.map((m) => ({
+            data: filtered.map(m => ({
               adId: ad.id,
               fieldId: m.fieldId,
               value: m.value,
@@ -482,9 +607,7 @@ export const adRouter = router({
             })
           }
 
-          const stripeSubscription = await stripe.subscriptions.retrieve(
-            session.subscription
-          )
+          const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription)
           const metadata = stripeSubscription.metadata ?? session.metadata
           const tierPriceId = metadata?.tierPriceId
           const customerEmail = session.customer_email

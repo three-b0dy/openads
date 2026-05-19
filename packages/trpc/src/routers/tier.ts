@@ -9,11 +9,7 @@ import {
 } from "@openads/stripe/products"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
-import {
-  publicProcedure,
-  router,
-  workspaceProcedure,
-} from "../index"
+import { publicProcedure, router, workspaceProcedure } from "../index"
 
 const createInputSchema = tierSchema.extend({
   initialPrices: z.array(tierPriceSchema).min(1, "At least one price is required"),
@@ -119,7 +115,7 @@ export const tierRouter = router({
             ...createdStripePriceIds.map(id => archivePrice(stripe, id)),
             ...(product ? [archiveTierProduct(stripe, product.id)] : []),
           ])
-          
+
           await db.tierPrice.deleteMany({ where: { tierId: tier.id } })
           await db.tier.delete({ where: { id: tier.id } })
           throw err

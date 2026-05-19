@@ -17,19 +17,17 @@ export async function createSubscriptionCheckoutSession(
   stripe: StripeClient,
   props: CreateCheckoutSessionProps,
 ): Promise<Stripe.Checkout.Session> {
-  return stripe.checkout.sessions.create(
-    {
-      mode: "subscription",
-      line_items: [{ price: props.priceId, quantity: 1 }],
-      customer_email: props.customerEmail,
-      success_url: props.successUrl,
-      cancel_url: props.cancelUrl,
-      client_reference_id: props.metadata.workspaceId,
-      subscription_data: {
-        metadata: props.metadata,
-      },
+  return stripe.checkout.sessions.create({
+    mode: "subscription",
+    line_items: [{ price: props.priceId, quantity: 1 }],
+    customer_email: props.customerEmail,
+    success_url: props.successUrl,
+    cancel_url: props.cancelUrl,
+    client_reference_id: props.metadata.workspaceId,
+    subscription_data: {
       metadata: props.metadata,
-      allow_promotion_codes: true,
-    }
-  )
+    },
+    metadata: props.metadata,
+    allow_promotion_codes: true,
+  })
 }

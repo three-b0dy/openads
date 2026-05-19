@@ -1,6 +1,5 @@
 import { Skeleton } from "@openads/ui/skeleton"
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
-
 import { Sidebar, SidebarSkeleton } from "~/components/sidebar"
 import { WorkspaceContext } from "~/contexts/workspace-context"
 

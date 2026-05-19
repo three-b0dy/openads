@@ -104,9 +104,6 @@ export async function createTierPrice(
   })
 }
 
-export async function archivePrice(
-  stripe: StripeClient,
-  priceId: string,
-): Promise<Stripe.Price> {
+export async function archivePrice(stripe: StripeClient, priceId: string): Promise<Stripe.Price> {
   return stripe.prices.update(priceId, { active: false })
 }

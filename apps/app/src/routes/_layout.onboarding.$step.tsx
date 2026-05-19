@@ -4,7 +4,6 @@ import { ArrowRightIcon } from "lucide-react"
 import { z } from "zod"
 import { OnboardingNextButton } from "~/components/onboarding/next-button"
 import { OnboardingStep } from "~/components/onboarding/step"
-
 import { CreateWorkspaceForm } from "~/components/workspaces/create-workspace-form"
 import { siteConfig } from "~/config/site"
 import { useOnboardingProgress } from "~/hooks/use-onboarding-progress"
@@ -32,8 +31,6 @@ function OnboardingStepPage() {
   const { workspaceId } = Route.useSearch()
   const { continueTo } = useOnboardingProgress()
 
-
-
   switch (step) {
     case "welcome":
       return (
@@ -60,7 +57,5 @@ function OnboardingStepPage() {
           <CreateWorkspaceForm onSuccess={({ id }) => continueTo("completed", id)} />
         </OnboardingStep>
       )
-
-
   }
 }

@@ -81,6 +81,13 @@ Each Tier has many `TierPrice`s (one Stripe Product, many Stripe Prices). A tier
 - **Intervals supported**: `Day` / `Week` / `Month` / `Year` (matches `Stripe.recurring.interval`). `intervalCount` is on the schema with `default(1)` but isn't yet exposed in the form.
 - **Form input**: publishers type integer whole units (`19`); the form multiplies by 100 before submitting. DB and Stripe always see cents.
 
+### 11. Manual ads, advertiser email editing, and mail suppression
+For manually created ads, the default advertiser email is `manual@openads.internal`.
+- **Suppressing dummy emails**: All lifecycle and review actions (`approve`, `reject`, `requestChanges`) skip sending transactional emails when the advertiser's email is exactly `manual@openads.internal`.
+- **Edit Creative & Advertiser**: Publishers can edit existing ads from the dashboard. This allows changing the name, destination URL, custom meta fields, and the advertiser's email address.
+- **Advertiser re-assignment**: Changing the advertiser's email performs a workspace-scoped find-or-create of a new `Advertiser` and updates `Subscription.advertiserId` to point to it, preserving other ads' shared advertiser associations.
+- **Update Notifications**: Real advertisers are notified via the `ad-updated` email template upon changes, while `manual@openads.internal` updates are silently executed without any SES network request.
+
 ## Out of scope at v1 (don't gold-plate)
 
 The following are explicit deferrals. Don't build them without confirming a scope expansion:

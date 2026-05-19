@@ -43,7 +43,7 @@ export const ImageUpload = ({
 
     try {
       setIsUploading(true)
-      const presigned = isManual 
+      const presigned = isManual
         ? await createWorkspaceUpload.mutateAsync({
             workspaceId,
             fileName: file.name,

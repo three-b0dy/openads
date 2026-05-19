@@ -38,7 +38,8 @@ export function CreateManualAdDialog({ workspaceId }: { workspaceId: string }) {
         <DialogHeader>
           <DialogTitle>Add Manual Ad</DialogTitle>
           <DialogDescription>
-            Manually create an ad for this workspace. This will bypass Stripe billing and immediately mark the ad as Approved.
+            Manually create an ad for this workspace. This will bypass Stripe billing and
+            immediately mark the ad as Approved.
           </DialogDescription>
         </DialogHeader>
 

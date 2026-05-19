@@ -24,14 +24,14 @@ export function createAuthServer(config: AuthConfig) {
     databaseHooks: {
       user: {
         create: {
-          before: async (user) => {
+          before: async user => {
             if (config.enableRegistration === false) {
               throw new Error("Registration is currently disabled.")
             }
             return { data: user }
-          }
-        }
-      }
+          },
+        },
+      },
     },
 
     session: {

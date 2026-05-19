@@ -11,6 +11,7 @@ import { ImageUpload } from "~/components/ads/image-upload"
 import { FormButton } from "~/components/form-button"
 import { type RouterOutputs, trpc } from "~/lib/trpc"
 
+type Ad = NonNullable<RouterOutputs["ad"]["getById"]>
 type Field = RouterOutputs["field"]["getAll"][number]
 
 const buildSchema = (fields: Field[]) => {
@@ -49,39 +50,55 @@ const buildSchema = (fields: Field[]) => {
   return z.object({
     name: z.string().trim().min(2, { message: "Name is too short" }),
     websiteUrl: z.url(),
+    advertiserEmail: z.email({ message: "Enter a valid email" }).or(z.literal("")).optional(),
     meta: z.object(metaShape).optional().default({}),
   })
 }
 
-type ManualAdFormProps = HTMLAttributes<HTMLFormElement> & {
+type EditAdFormProps = HTMLAttributes<HTMLFormElement> & {
   workspaceId: string
-  tierId: string
+  adId: string
+  ad: Ad
   fields: Field[]
   onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export const ManualAdForm = ({
+export function EditAdForm({
   className,
   workspaceId,
-  tierId,
+  adId,
+  ad,
   fields,
   onSuccess: onSuccessCallback,
+  onCancel,
   ...props
-}: ManualAdFormProps) => {
+}: EditAdFormProps) {
   const schema = buildSchema(fields)
   type FormValues = z.infer<typeof schema>
 
+  // Build meta default values from the existing ad.meta array.
+  const metaDefaults: Record<string, unknown> = {}
+  for (const m of ad.meta) {
+    metaDefaults[m.fieldId] = m.value
+  }
+
   const form = useForm<FormValues>({
     defaultValues: {
-      name: "",
-      websiteUrl: "",
-      meta: {},
-    } as FormValues,
+      name: ad.name,
+      websiteUrl: ad.websiteUrl,
+      advertiserEmail: ad.subscription.advertiser.email ?? "",
+      meta: metaDefaults as FormValues["meta"],
+    },
   })
 
-  const submit = trpc.ad.manualCreate.useMutation({
-    onSuccess: () => {
-      toast.success("Ad created and approved manually")
+  const utils = trpc.useUtils()
+
+  const submit = trpc.ad.update.useMutation({
+    onSuccess: async () => {
+      toast.success("Ad updated")
+      await utils.ad.getById.invalidate({ workspaceId, adId })
+      await utils.ad.getAll.invalidate({ workspaceId })
       onSuccessCallback?.()
     },
     onError: error => {
@@ -94,11 +111,18 @@ export const ManualAdForm = ({
       .filter(([_, v]) => v !== undefined && v !== "")
       .map(([fieldId, value]) => ({ fieldId, value }))
 
+    // Only pass advertiserEmail when it is non-empty and different from the current value.
+    const advertiserEmail =
+      values.advertiserEmail && values.advertiserEmail !== ad.subscription.advertiser.email
+        ? values.advertiserEmail
+        : undefined
+
     submit.mutate({
       workspaceId,
-      tierId,
+      adId,
       name: values.name,
       websiteUrl: values.websiteUrl,
+      advertiserEmail,
       meta,
     })
   }
@@ -139,6 +163,29 @@ export const ManualAdForm = ({
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="advertiserEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Advertiser email</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder="advertiser@example.com"
+                  {...field}
+                  value={field.value ?? ""}
+                />
+              </FormControl>
+              <p className="text-muted-foreground text-xs">
+                Leave blank to keep the current advertiser. Changing this creates or reassigns to an
+                existing advertiser with that email.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {fields.length > 0 && (
           <div className="grid gap-4 border-t pt-4">
             <p className="font-medium text-sm">Additional details</p>
@@ -162,9 +209,20 @@ export const ManualAdForm = ({
           </div>
         )}
 
-        <FormButton isPending={submit.isPending} className="mt-2">
-          Create Ad
-        </FormButton>
+        <div className="mt-2 flex gap-2">
+          <FormButton isPending={submit.isPending} className="flex-1">
+            Save changes
+          </FormButton>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md border px-4 py-2 text-sm hover:bg-muted"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </Form>
   )

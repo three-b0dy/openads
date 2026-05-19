@@ -110,8 +110,6 @@ export const workspaceProcedure = authProcedure
     })
   })
 
-
-
 // procedure that resolves an Ad scoped to a workspace the user belongs to.
 export const adProcedure = workspaceProcedure
   .input(z.object({ adId: z.string() }))

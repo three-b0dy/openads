@@ -41,7 +41,7 @@ export function EmailLoginForm({ callbackURL }: EmailLoginFormProps) {
           id="email"
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           placeholder="you@example.com"
           required
         />

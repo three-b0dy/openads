@@ -1,4 +1,3 @@
-
 import { TooltipProvider } from "@openads/ui/tooltip"
 import { createRootRouteWithContext, Outlet, redirect, useLocation } from "@tanstack/react-router"
 import { useEffect } from "react"

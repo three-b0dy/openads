@@ -3,10 +3,11 @@ import { Button } from "@openads/ui/button"
 import { Stack } from "@openads/ui/stack"
 import { Textarea } from "@openads/ui/textarea"
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { CheckIcon, MessageSquareIcon, XIcon } from "lucide-react"
+import { CheckIcon, MessageSquareIcon, PencilIcon, XIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { AdStats } from "~/components/ads/ad-stats"
+import { EditAdForm } from "~/components/ads/edit-ad-form"
 import { Card } from "~/components/ui/card"
 import { Header, HeaderActions, HeaderTitle } from "~/components/ui/header"
 import { H4, H5 } from "~/components/ui/heading"
@@ -38,6 +39,7 @@ function AdReviewPage() {
   const ad = (adQuery.data ?? initial) as Ad
 
   const [note, setNote] = useState("")
+  const [isEditing, setIsEditing] = useState(false)
 
   const onMutate = (action: string) => async () => {
     toast.success(`Ad ${action}`)
@@ -73,50 +75,72 @@ function AdReviewPage() {
 
         <HeaderActions>
           <Badge>{ad.status}</Badge>
+          <Button
+            variant="secondary"
+            prefix={isEditing ? <XIcon /> : <PencilIcon />}
+            onClick={() => setIsEditing(v => !v)}
+          >
+            {isEditing ? "Cancel edit" : "Edit"}
+          </Button>
         </HeaderActions>
       </Header>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Stack direction="column" size="md">
+        <div className="flex flex-col gap-6">
           <Card>
             <Card.Section>
               <H4>Creative</H4>
-              <Stack direction="column" size="sm" className="mt-4">
-                <Field label="Destination">
-                  <a
-                    href={ad.websiteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 underline"
-                  >
-                    {ad.websiteUrl}
-                  </a>
-                </Field>
-                <Field label="Weight">{ad.subscription.tier.weight}</Field>
-                <Field label="Tier">{ad.subscription.tier.name}</Field>
-                <Field label="Billing">{formatTierPrice(ad.subscription.tierPrice)}</Field>
-                <Field label="Advertiser">
-                  {ad.subscription.advertiser.email ?? ad.subscription.advertiser.name}
-                </Field>
-              </Stack>
 
-              {ad.meta.length > 0 && (
+              {isEditing ? (
+                <EditAdForm
+                  className="mt-4"
+                  workspaceId={workspaceId}
+                  adId={adId}
+                  ad={ad}
+                  fields={fields}
+                  onSuccess={() => setIsEditing(false)}
+                  onCancel={() => setIsEditing(false)}
+                />
+              ) : (
                 <>
-                  <H5 className="mt-6">Custom fields</H5>
-                  <Stack direction="column" size="sm" className="mt-2">
-                    {ad.meta.map(m => (
-                      <Field key={m.id} label={fieldLabel(m.fieldId, fields)}>
-                        {renderMetaValue(m, fields)}
-                      </Field>
-                    ))}
+                  <Stack direction="column" size="sm" className="mt-4">
+                    <Field label="Destination">
+                      <a
+                        href={ad.websiteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        {ad.websiteUrl}
+                      </a>
+                    </Field>
+                    <Field label="Weight">{ad.subscription.tier.weight}</Field>
+                    <Field label="Tier">{ad.subscription.tier.name}</Field>
+                    <Field label="Billing">{formatTierPrice(ad.subscription.tierPrice)}</Field>
+                    <Field label="Advertiser">
+                      {ad.subscription.advertiser.email ?? ad.subscription.advertiser.name}
+                    </Field>
                   </Stack>
+
+                  {ad.meta.length > 0 && (
+                    <>
+                      <H5 className="mt-6">Custom fields</H5>
+                      <Stack direction="column" size="sm" className="mt-2">
+                        {ad.meta.map(m => (
+                          <Field key={m.id} label={fieldLabel(m.fieldId, fields)}>
+                            {renderMetaValue(m, fields)}
+                          </Field>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
                 </>
               )}
             </Card.Section>
           </Card>
 
           <AdStats workspaceId={workspaceId} adId={adId} />
-        </Stack>
+        </div>
 
         <Card>
           <Card.Section>

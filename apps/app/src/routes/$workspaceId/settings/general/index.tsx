@@ -4,7 +4,6 @@ import { DeleteForm } from "~/routes/$workspaceId/settings/general/-components/d
 import { GeneralForm } from "~/routes/$workspaceId/settings/general/-components/general-form"
 import { IdForm } from "~/routes/$workspaceId/settings/general/-components/id-form"
 
-
 export const Route = createFileRoute("/$workspaceId/settings/general/")({
   component: SettingsGeneralPage,
 })

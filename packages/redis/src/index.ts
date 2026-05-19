@@ -6,7 +6,7 @@ export interface RedisConfig {
 export function createRedisClient(config?: RedisConfig) {
   console.warn("Using in-memory dummy Redis client for local development")
   const store = new Map<string, any>()
-  
+
   return {
     get: async (key: string) => store.get(key) || null,
     set: async (key: string, value: any) => {
@@ -25,7 +25,7 @@ export function createRedisClient(config?: RedisConfig) {
     expire: async (key: string, seconds: number) => {
       setTimeout(() => store.delete(key), seconds * 1000)
       return 1
-    }
+    },
   } as any
 }
 

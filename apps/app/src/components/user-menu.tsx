@@ -1,4 +1,3 @@
-
 import type { Button } from "@openads/ui/button"
 import {
   DropdownMenu,
@@ -82,8 +81,6 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
           </a>
         </DropdownMenuItem>
 
-
-
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleLogout}>
@@ -94,4 +91,3 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
     </DropdownMenu>
   )
 }
-
