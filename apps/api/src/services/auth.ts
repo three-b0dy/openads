@@ -5,6 +5,7 @@ import { emails } from "./emails"
 
 export const auth = createAuthServer({
   APP_URL: env.APP_URL,
+  enableRegistration: env.ENABLE_REGISTRATION,
   onSendMagicLink: async (email, url) => {
     const rendered = await renderMagicLink({ url })
     await emails.send({

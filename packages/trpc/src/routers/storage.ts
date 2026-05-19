@@ -46,6 +46,53 @@ export const storageRouter = router({
     return await s3.deletePrefix({ prefix: `workspaces/${workspace.id}` })
   }),
 
+  createWorkspaceUpload: workspaceProcedure
+    .input(
+      z.object({
+        fileName: z.string().min(1).max(200),
+        contentType: z.string().min(1),
+        contentLength: z.number().int().positive(),
+      }),
+    )
+    .mutation(async ({ ctx: { s3, workspace }, input: { fileName, contentType, contentLength } }) => {
+      if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Unsupported file type. Use PNG, JPEG, or WebP.",
+        })
+      }
+
+      if (contentLength > MAX_ADVERTISER_UPLOAD_BYTES) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "File is too large. Maximum upload size is 2 MB.",
+        })
+      }
+
+      const objectKey = `workspaces/${workspace.id}/uploads/manual/${generateObjectKey(fileName)}`
+
+      const presigned = await s3.createSignedPost({
+        key: objectKey,
+        expiresInSeconds: ADVERTISER_UPLOAD_TTL_SECONDS,
+        contentLengthRange: { max: MAX_ADVERTISER_UPLOAD_BYTES },
+        fields: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+        conditions: [
+          ["eq", "$Content-Type", contentType],
+          ["eq", "$Cache-Control", "public, max-age=31536000, immutable"],
+        ],
+      })
+
+      return {
+        uploadUrl: presigned.url,
+        fields: presigned.fields,
+        publicUrl: s3.getPublicUrl({ key: objectKey }),
+        key: objectKey,
+      }
+    }),
+
   // Anonymous endpoint: the Stripe Checkout session is the only auth, so
   // rate-limit per session to bound abuse from a leaked session id.
   public: router({

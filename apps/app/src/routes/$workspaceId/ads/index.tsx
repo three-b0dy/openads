@@ -6,8 +6,9 @@ import { z } from "zod"
 import { AdRow } from "~/components/ads/ad-row"
 import { QueryCell } from "~/components/query-cell"
 import { Callout, CalloutText } from "~/components/ui/callout"
-import { Header, HeaderTitle } from "~/components/ui/header"
+import { Header, HeaderTitle, HeaderActions } from "~/components/ui/header"
 import { trpc } from "~/lib/trpc"
+import { CreateManualAdDialog } from "./-components/create-manual-ad-dialog"
 
 const statusValues = ["Pending", "Approved", "Rejected"] as const
 
@@ -30,6 +31,9 @@ function AdsIndexPage() {
     <>
       <Header>
         <HeaderTitle>Ads</HeaderTitle>
+        <HeaderActions>
+          <CreateManualAdDialog workspaceId={workspaceId} />
+        </HeaderActions>
       </Header>
 
       <Tabs

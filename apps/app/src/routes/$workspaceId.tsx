@@ -1,6 +1,6 @@
 import { Skeleton } from "@openads/ui/skeleton"
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
-import { CossistantChat } from "~/components/cossistant-chat"
+
 import { Sidebar, SidebarSkeleton } from "~/components/sidebar"
 import { WorkspaceContext } from "~/contexts/workspace-context"
 
@@ -52,8 +52,6 @@ function WorkspaceLayout() {
           </div>
         </div>
       </div>
-
-      <CossistantChat />
     </WorkspaceContext>
   )
 }

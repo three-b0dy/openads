@@ -46,29 +46,13 @@ const getConnectedCheckoutSession = async ({
   workspaceId: string
   sessionId: string
 }) => {
-  const workspace = await db.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { id: true, stripeConnectId: true },
-  })
-
-  if (!workspace?.stripeConnectId) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message: "This publisher cannot accept payments yet.",
-    })
-  }
-
-  const session = await stripe.checkout.sessions.retrieve(
-    sessionId,
-    {},
-    { stripeAccount: workspace.stripeConnectId },
-  )
+  const session = await stripe.checkout.sessions.retrieve(sessionId)
 
   if (session.metadata?.workspaceId !== workspaceId) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Checkout workspace mismatch." })
   }
 
-  return { session, connectedAccountId: workspace.stripeConnectId }
+  return { session }
 }
 
 export const adRouter = router({
@@ -171,15 +155,7 @@ export const adRouter = router({
 
       // Cancel the underlying Stripe subscription so the advertiser stops being billed.
       try {
-        if (!workspace.stripeConnectId) {
-          throw new Error("Workspace has no connected Stripe account")
-        }
-
-        await stripe.subscriptions.cancel(
-          ad.subscription.stripeSubscriptionId,
-          {},
-          { stripeAccount: workspace.stripeConnectId },
-        )
+        await stripe.subscriptions.cancel(ad.subscription.stripeSubscriptionId)
       } catch (err) {
         // Subscription may already be canceled or otherwise inaccessible — leave
         // local state correct and surface the failure in logs only.
@@ -239,6 +215,94 @@ export const adRouter = router({
       }
 
       return updated
+    }),
+
+  manualCreate: workspaceProcedure
+    .input(
+      z.object({
+        tierId: z.string(),
+        name: z.string().trim().min(2),
+        websiteUrl: z.url(),
+        meta: z
+          .array(z.object({ fieldId: z.string(), value: z.any() }))
+          .optional()
+          .default([]),
+      }),
+    )
+    .mutation(async ({ ctx: { db, workspace, logger, s3 }, input }) => {
+      const tier = await db.tier.findFirst({
+        where: { id: input.tierId, workspaceId: workspace.id },
+        include: { prices: { where: { isActive: true }, take: 1 } },
+      })
+
+      if (!tier || tier.prices.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tier not found or has no active price." })
+      }
+
+      let advertiser = await db.advertiser.findFirst({
+        where: { workspaceId: workspace.id, email: "manual@openads.internal" },
+      })
+
+      if (!advertiser) {
+        advertiser = await db.advertiser.create({
+          data: {
+            workspaceId: workspace.id,
+            email: "manual@openads.internal",
+            name: "Manual Advertiser",
+          },
+        })
+      }
+
+      const subscription = await db.subscription.create({
+        data: {
+          stripeSubscriptionId: `manual_sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          status: "Active",
+          workspaceId: workspace.id,
+          tierId: tier.id,
+          tierPriceId: tier.prices[0].id,
+          advertiserId: advertiser.id,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10), // 10 years
+        },
+      })
+
+      const ad = await db.ad.create({
+        data: {
+          subscriptionId: subscription.id,
+          status: "Approved",
+          name: input.name,
+          websiteUrl: input.websiteUrl,
+          approvedAt: new Date(),
+        },
+      })
+
+      await fetchAndUploadFavicon(s3, {
+        websiteUrl: input.websiteUrl,
+        key: `workspaces/${workspace.id}/ads/${ad.id}/favicon.png`,
+      }).catch((err) => {
+        logger.warn("ad.manualCreate: favicon fetch failed", { err, adId: ad.id })
+      })
+
+      if (input.meta.length > 0) {
+        const validFieldIds = new Set(
+          (await db.field.findMany({ where: { workspaceId: workspace.id }, select: { id: true } })).map(
+            (f) => f.id,
+          ),
+        )
+        const filtered = input.meta.filter((m) => validFieldIds.has(m.fieldId))
+
+        if (filtered.length > 0) {
+          await db.meta.createMany({
+            data: filtered.map((m) => ({
+              adId: ad.id,
+              fieldId: m.fieldId,
+              value: m.value,
+            })),
+          })
+        }
+      }
+
+      return ad
     }),
 
   // Public surface — embed serving and advertiser checkout success.
@@ -397,7 +461,7 @@ export const adRouter = router({
           ctx: { db, emails, logger, s3, stripe, env },
           input: { workspaceId, sessionId, name, websiteUrl, meta },
         }) => {
-          const { connectedAccountId, session } = await getConnectedCheckoutSession({
+          const { session } = await getConnectedCheckoutSession({
             db,
             stripe,
             workspaceId,
@@ -419,9 +483,7 @@ export const adRouter = router({
           }
 
           const stripeSubscription = await stripe.subscriptions.retrieve(
-            session.subscription,
-            {},
-            { stripeAccount: connectedAccountId },
+            session.subscription
           )
           const metadata = stripeSubscription.metadata ?? session.metadata
           const tierPriceId = metadata?.tierPriceId

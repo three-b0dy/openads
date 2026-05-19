@@ -1,4 +1,4 @@
-import { useSupport } from "@cossistant/react"
+
 import type { Button } from "@openads/ui/button"
 import {
   DropdownMenu,
@@ -22,7 +22,6 @@ import { NavButton, NavButtonSkeleton } from "~/components/nav-button"
 import { useWorkspace } from "~/contexts/workspace-context"
 import { authClient } from "~/lib/auth"
 import { trpc } from "~/lib/trpc"
-import { env } from "~/env"
 
 export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
   const router = useRouter()
@@ -83,7 +82,7 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
           </a>
         </DropdownMenuItem>
 
-        {env.VITE_COSSISTANT_PUBLIC_KEY && <SupportMenuItem />}
+
 
         <DropdownMenuSeparator />
 
@@ -96,12 +95,3 @@ export const UserMenu = ({ ...props }: ComponentProps<typeof Button>) => {
   )
 }
 
-const SupportMenuItem = () => {
-  const { open } = useSupport()
-  return (
-    <DropdownMenuItem onSelect={() => open()}>
-      <LifeBuoyIcon />
-      Support
-    </DropdownMenuItem>
-  )
-}

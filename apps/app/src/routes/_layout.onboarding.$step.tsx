@@ -1,16 +1,13 @@
 import { ONBOARDING_STEPS } from "@openads/utils"
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { ArrowRightIcon, LoaderIcon } from "lucide-react"
+import { ArrowRightIcon } from "lucide-react"
 import { z } from "zod"
-import { OnboardingLaterButton } from "~/components/onboarding/later-button"
 import { OnboardingNextButton } from "~/components/onboarding/next-button"
 import { OnboardingStep } from "~/components/onboarding/step"
-import { QueryCell } from "~/components/query-cell"
-import { StripeConnectButtons } from "~/components/stripe/stripe-connect-buttons"
+
 import { CreateWorkspaceForm } from "~/components/workspaces/create-workspace-form"
 import { siteConfig } from "~/config/site"
 import { useOnboardingProgress } from "~/hooks/use-onboarding-progress"
-import { trpc } from "~/lib/trpc"
 
 export const Route = createFileRoute("/_layout/onboarding/$step")({
   params: {
@@ -35,7 +32,7 @@ function OnboardingStepPage() {
   const { workspaceId } = Route.useSearch()
   const { continueTo } = useOnboardingProgress()
 
-  const query = trpc.workspace.getById.useQuery({ id: workspaceId! }, { enabled: !!workspaceId })
+
 
   switch (step) {
     case "welcome":
@@ -60,31 +57,10 @@ function OnboardingStepPage() {
           title="Create your workspace"
           description="For example, you can use the name of your company or department."
         >
-          <CreateWorkspaceForm onSuccess={({ id }) => continueTo("stripe", id)} />
+          <CreateWorkspaceForm onSuccess={({ id }) => continueTo("completed", id)} />
         </OnboardingStep>
       )
 
-    case "stripe":
-      return (
-        <OnboardingStep
-          title="Connect your Stripe account"
-          description="Connect Stripe so advertisers can subscribe to your tiers through your Stripe account."
-        >
-          <QueryCell
-            query={query}
-            pending={() => <LoaderIcon className="mx-auto animate-spin" />}
-            empty={() => <p className="text-red-500">There was an error loading the workspace.</p>}
-            success={({ data }) => (
-              <div className="space-y-4">
-                <StripeConnectButtons workspace={data} />
 
-                <OnboardingLaterButton step="completed" id={workspaceId}>
-                  I'll connect Stripe later
-                </OnboardingLaterButton>
-              </div>
-            )}
-          />
-        </OnboardingStep>
-      )
   }
 }

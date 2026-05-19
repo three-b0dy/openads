@@ -2,12 +2,10 @@ import type Stripe from "stripe"
 import type { StripeClient } from "./index"
 
 export interface CreateCheckoutSessionProps {
-  connectedAccountId: string
   priceId: string
   customerEmail: string
   successUrl: string
   cancelUrl: string
-  applicationFeePercent: number
   metadata: {
     workspaceId: string
     tierId: string
@@ -28,12 +26,10 @@ export async function createSubscriptionCheckoutSession(
       cancel_url: props.cancelUrl,
       client_reference_id: props.metadata.workspaceId,
       subscription_data: {
-        application_fee_percent: props.applicationFeePercent,
         metadata: props.metadata,
       },
       metadata: props.metadata,
       allow_promotion_codes: true,
-    },
-    { stripeAccount: props.connectedAccountId },
+    }
   )
 }

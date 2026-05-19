@@ -7,7 +7,8 @@ import { trpc } from "~/lib/trpc"
 
 type ImageUploadProps = Omit<ComponentProps<"div">, "onChange"> & {
   workspaceId: string
-  sessionId: string
+  sessionId?: string
+  isManual?: boolean
   value?: string | null
   onChange: (url: string | null) => void
   accept?: string
@@ -18,6 +19,7 @@ const DEFAULT_ACCEPT = "image/png,image/jpeg,image/webp"
 export const ImageUpload = ({
   workspaceId,
   sessionId,
+  isManual,
   value,
   onChange,
   accept = DEFAULT_ACCEPT,
@@ -28,6 +30,7 @@ export const ImageUpload = ({
   const [isUploading, setIsUploading] = useState(false)
 
   const createUpload = trpc.storage.public.createAdvertiserUpload.useMutation()
+  const createWorkspaceUpload = trpc.storage.createWorkspaceUpload.useMutation()
 
   const handlePick = () => inputRef.current?.click()
 
@@ -40,13 +43,20 @@ export const ImageUpload = ({
 
     try {
       setIsUploading(true)
-      const presigned = await createUpload.mutateAsync({
-        workspaceId,
-        sessionId,
-        fileName: file.name,
-        contentType: file.type,
-        contentLength: file.size,
-      })
+      const presigned = isManual 
+        ? await createWorkspaceUpload.mutateAsync({
+            workspaceId,
+            fileName: file.name,
+            contentType: file.type,
+            contentLength: file.size,
+          })
+        : await createUpload.mutateAsync({
+            workspaceId,
+            sessionId: sessionId!,
+            fileName: file.name,
+            contentType: file.type,
+            contentLength: file.size,
+          })
 
       // Presigned POST: every field from the signature must be in the form,
       // and the file must come last (S3 requirement).

@@ -2,13 +2,13 @@ import { idSchema, tierPriceSchema } from "@openads/db/schema"
 import { archivePrice, createTierPrice } from "@openads/stripe/products"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
-import { connectEnabledWorkspaceProcedure, router } from "../index"
+import { router, workspaceProcedure } from "../index"
 
 export const tierPriceRouter = router({
   // Stripe Prices are immutable on unit_amount/interval/currency, so price
   // changes are always archive-then-create on both sides. A tier holds at most
   // one active price per (interval, intervalCount, currency) shape.
-  create: connectEnabledWorkspaceProcedure
+  create: workspaceProcedure
     .input(tierPriceSchema.extend({ tierId: z.string() }))
     .mutation(async ({ ctx: { db, stripe, workspace }, input }) => {
       const tier = await db.tier.findFirst({
@@ -49,9 +49,8 @@ export const tierPriceRouter = router({
         },
       })
 
-      if (workspace.stripeConnectEnabled && workspace.stripeConnectId && tier.stripeProductId) {
+      if (tier.stripeProductId) {
         const stripePrice = await createTierPrice(stripe, {
-          connectedAccountId: workspace.stripeConnectId,
           productId: tier.stripeProductId,
           unitAmount: input.amount,
           currency: input.currency,
@@ -78,7 +77,7 @@ export const tierPriceRouter = router({
   // Soft delete: archive the Stripe Price and flip isActive. Existing Subscriptions
   // referencing this TierPrice keep billing — Stripe lets archived Prices keep going
   // for in-flight subscribers.
-  archive: connectEnabledWorkspaceProcedure
+  archive: workspaceProcedure
     .input(idSchema)
     .mutation(async ({ ctx: { db, stripe, workspace }, input: { id } }) => {
       const tierPrice = await db.tierPrice.findFirst({
@@ -89,8 +88,8 @@ export const tierPriceRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" })
       }
 
-      if (tierPrice.stripePriceId && workspace.stripeConnectId) {
-        await archivePrice(stripe, workspace.stripeConnectId, tierPrice.stripePriceId)
+      if (tierPrice.stripePriceId) {
+        await archivePrice(stripe, tierPrice.stripePriceId)
       }
 
       return await db.tierPrice.update({

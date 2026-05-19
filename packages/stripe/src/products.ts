@@ -32,7 +32,6 @@ export interface TierPriceMetadata extends Record<string, string> {
 }
 
 export interface ProductCreateProps {
-  connectedAccountId: string
   name: string
   description?: string
   metadata: TierMetadata
@@ -43,15 +42,12 @@ export async function createTierProduct(
   stripe: StripeClient,
   props: ProductCreateProps,
 ): Promise<Stripe.Product> {
-  return stripe.products.create(
-    {
-      name: props.name,
-      description: props.description || undefined,
-      metadata: props.metadata,
-      marketing_features: props.features?.map(name => ({ name })),
-    },
-    { stripeAccount: props.connectedAccountId },
-  )
+  return stripe.products.create({
+    name: props.name,
+    description: props.description || undefined,
+    metadata: props.metadata,
+    marketing_features: props.features?.map(name => ({ name })),
+  })
 }
 
 export interface ProductUpdateProps {
@@ -64,33 +60,26 @@ export interface ProductUpdateProps {
 
 export async function updateTierProduct(
   stripe: StripeClient,
-  connectedAccountId: string,
   productId: string,
   props: ProductUpdateProps,
 ): Promise<Stripe.Product> {
-  return stripe.products.update(
-    productId,
-    {
-      name: props.name,
-      description: props.description ?? undefined,
-      active: props.active,
-      metadata: props.metadata as Record<string, string> | undefined,
-      marketing_features: props.features?.map(name => ({ name })),
-    },
-    { stripeAccount: connectedAccountId },
-  )
+  return stripe.products.update(productId, {
+    name: props.name,
+    description: props.description ?? undefined,
+    active: props.active,
+    metadata: props.metadata as Record<string, string> | undefined,
+    marketing_features: props.features?.map(name => ({ name })),
+  })
 }
 
 export async function archiveTierProduct(
   stripe: StripeClient,
-  connectedAccountId: string,
   productId: string,
 ): Promise<Stripe.Product> {
-  return stripe.products.update(productId, { active: false }, { stripeAccount: connectedAccountId })
+  return stripe.products.update(productId, { active: false })
 }
 
 export interface TierPriceCreateProps {
-  connectedAccountId: string
   productId: string
   unitAmount: number
   currency: string
@@ -103,25 +92,21 @@ export async function createTierPrice(
   stripe: StripeClient,
   props: TierPriceCreateProps,
 ): Promise<Stripe.Price> {
-  return stripe.prices.create(
-    {
-      product: props.productId,
-      unit_amount: props.unitAmount,
-      currency: props.currency,
-      recurring: {
-        interval: toStripeInterval(props.interval),
-        interval_count: props.intervalCount,
-      },
-      metadata: props.metadata,
+  return stripe.prices.create({
+    product: props.productId,
+    unit_amount: props.unitAmount,
+    currency: props.currency,
+    recurring: {
+      interval: toStripeInterval(props.interval),
+      interval_count: props.intervalCount,
     },
-    { stripeAccount: props.connectedAccountId },
-  )
+    metadata: props.metadata,
+  })
 }
 
 export async function archivePrice(
   stripe: StripeClient,
-  connectedAccountId: string,
   priceId: string,
 ): Promise<Stripe.Price> {
-  return stripe.prices.update(priceId, { active: false }, { stripeAccount: connectedAccountId })
+  return stripe.prices.update(priceId, { active: false })
 }

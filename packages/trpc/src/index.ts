@@ -110,17 +110,7 @@ export const workspaceProcedure = authProcedure
     })
   })
 
-// workspaceProcedure that additionally requires the workspace to have Stripe Connect onboarded.
-// Re-exposes the workspace on ctx so call sites can pass `stripeConnectId` directly into Stripe calls.
-export const connectEnabledWorkspaceProcedure = workspaceProcedure.use(
-  async ({ ctx: { workspace }, next }) => {
-    const stripeConnectedWorkspace = { ...workspace, stripeConnectId: workspace.stripeConnectId || null }
 
-    return next({
-      ctx: { workspace: stripeConnectedWorkspace },
-    })
-  },
-)
 
 // procedure that resolves an Ad scoped to a workspace the user belongs to.
 export const adProcedure = workspaceProcedure

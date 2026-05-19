@@ -5,6 +5,7 @@ import { admin, lastLoginMethod, magicLink } from "better-auth/plugins"
 
 export interface AuthConfig {
   APP_URL: string
+  enableRegistration?: boolean
   onSendMagicLink?: (email: string, url: string) => Promise<void>
 }
 
@@ -18,6 +19,19 @@ export function createAuthServer(config: AuthConfig) {
       accountLinking: {
         enabled: true,
       },
+    },
+
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (config.enableRegistration === false) {
+              throw new Error("Registration is currently disabled.")
+            }
+            return { data: user }
+          }
+        }
+      }
     },
 
     session: {
