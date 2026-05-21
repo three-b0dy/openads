@@ -23,7 +23,7 @@ COPY packages/ui/package.json ./packages/ui/
 COPY packages/utils/package.json ./packages/utils/
 
 # 安装所有依赖（锁版本）
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # 2. 复制全部源码并进行编译
 COPY packages/ ./packages/

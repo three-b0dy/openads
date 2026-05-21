@@ -1,9 +1,17 @@
+import Redis from "ioredis"
+
 export interface RedisConfig {
-  REDIS_REST_URL?: string
-  REDIS_REST_TOKEN?: string
+  REDIS_URL?: string
 }
 
 export function createRedisClient(config?: RedisConfig) {
+  // 如果提供了 Redis TCP URL，则连接真实数据库
+  if (config?.REDIS_URL) {
+    console.info("Connecting to real Redis server via TCP...")
+    return new Redis(config.REDIS_URL)
+  }
+
+  // 否则回退为内存模拟（本地免配置开发）
   console.warn("Using in-memory dummy Redis client for local development")
   const store = new Map<string, any>()
 
