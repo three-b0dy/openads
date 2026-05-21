@@ -14,7 +14,7 @@ API_PID=$!
 
 # 2. 在后台启动前端静态网页服务器 (端口 5183)
 echo "==> Starting Web server on port 5183..."
-sirv apps/app/dist --port 5183 --single --host 0.0.0.0 &
+bunx sirv-cli apps/app/dist --port 5183 --single --host 0.0.0.0 &
 WEB_PID=$!
 
 # 3. 进程健康监控循环 (POSIX 兼容，完美支持 Alpine Linux)

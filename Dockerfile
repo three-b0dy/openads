@@ -44,8 +44,6 @@ FROM oven/bun:1.3.14-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 全局安装静态文件服务器 sirv-cli
-RUN bun add -g sirv-cli
 
 # 从 builder 阶段仅复制运行必需的文件
 COPY --from=builder /app/package.json /app/bun.lock /app/turbo.json ./
