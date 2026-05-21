@@ -32,6 +32,12 @@ COPY apps/ ./apps/
 # 生成 Prisma 客户端
 RUN bun run db:generate
 
+# 接收 Dokploy 的构建参数以编译进前端包中
+ARG VITE_BASE_URL
+ARG VITE_API_URL
+ENV VITE_BASE_URL=$VITE_BASE_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # 编译前端 SPA 应用 (产物保存在 apps/app/dist)
 RUN bun run build --filter=@openads/app
 
