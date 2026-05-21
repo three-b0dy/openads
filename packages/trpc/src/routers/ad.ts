@@ -458,6 +458,58 @@ export const adRouter = router({
         })
       }),
 
+    listForPlacement: publicProcedure
+      .input(
+        z.object({
+          slug: z.string(),
+          weightGte: z.number().positive().optional(),
+        }),
+      )
+      .query(async ({ ctx: { db }, input }) => {
+        const workspace = await db.workspace.findUnique({
+          where: { slug: input.slug },
+          select: { id: true },
+        })
+
+        if (!workspace) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found." })
+        }
+
+        const rows = await db.ad.findMany({
+          where: {
+            status: "Approved",
+            subscription: {
+              workspaceId: workspace.id,
+              status: { in: ["Active", "Trialing"] },
+              ...(input.weightGte !== undefined
+                ? { tier: { weight: { gte: input.weightGte } } }
+                : {}),
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            websiteUrl: true,
+            subscription: { select: { tier: { select: { weight: true } } } },
+            meta: {
+              select: {
+                fieldId: true,
+                value: true,
+                field: { select: { name: true } },
+              },
+            },
+          },
+        })
+
+        return rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          websiteUrl: r.websiteUrl,
+          weight: r.subscription.tier.weight,
+          meta: r.meta.map(m => ({ fieldId: m.fieldId, fieldName: m.field.name, value: m.value })),
+        }))
+      }),
+
     recordImpression: publicProcedure
       .input(z.object({ adId: z.string() }))
       .mutation(async ({ ctx: { db, redis, clientIp }, input: { adId } }) => {
