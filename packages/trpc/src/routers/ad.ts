@@ -490,7 +490,7 @@ export const adRouter = router({
             id: true,
             name: true,
             websiteUrl: true,
-            subscription: { select: { tier: { select: { weight: true } } } },
+            subscription: { select: { tier: { select: { id: true, name: true, weight: true } } } },
             meta: {
               select: {
                 fieldId: true,
@@ -506,6 +506,10 @@ export const adRouter = router({
           name: r.name,
           websiteUrl: r.websiteUrl,
           weight: r.subscription.tier.weight,
+          tier: {
+            id: r.subscription.tier.id,
+            name: r.subscription.tier.name,
+          },
           meta: r.meta.map(m => ({ fieldId: m.fieldId, fieldName: m.field.name, value: m.value })),
         }))
       }),

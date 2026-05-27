@@ -5,6 +5,10 @@ export interface ServingCandidate {
   weight: number
   name: string
   websiteUrl: string
+  tier: {
+    id: string
+    name: string
+  }
   meta: Array<{ fieldId: string; value: unknown }>
 }
 
@@ -57,7 +61,7 @@ export async function findServingAd({
       id: true,
       name: true,
       websiteUrl: true,
-      subscription: { select: { tier: { select: { weight: true } } } },
+      subscription: { select: { tier: { select: { id: true, name: true, weight: true } } } },
       meta: { select: { fieldId: true, value: true } },
     },
   })
@@ -67,6 +71,10 @@ export async function findServingAd({
     name: r.name,
     websiteUrl: r.websiteUrl,
     weight: r.subscription.tier.weight,
+    tier: {
+      id: r.subscription.tier.id,
+      name: r.subscription.tier.name,
+    },
     meta: r.meta,
   }))
 
