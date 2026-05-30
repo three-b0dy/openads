@@ -39,16 +39,21 @@ function MagicLinkConfirm() {
     )
   }
 
-  const verifyUrl = new URL(`${env.VITE_API_URL}/api/auth/magic-link/verify`)
-  verifyUrl.searchParams.set("token", token)
-  if (callbackURL) verifyUrl.searchParams.set("callbackURL", callbackURL)
-
   return (
     <Header gap="sm" alignment="center">
       <HeaderTitle>确认登录</HeaderTitle>
       <HeaderDescription>点击下方按钮完成登录，此链接有效期 10 分钟。</HeaderDescription>
       <div className="mt-6 flex flex-col gap-4 w-full max-w-sm">
-        <Button className="w-full" onClick={() => { window.location.href = verifyUrl.toString() }}>
+        <Button
+          className="w-full"
+          onClick={() => {
+            const verifyUrl = new URL(`${env.VITE_API_URL}/api/auth/magic-link/verify`)
+            verifyUrl.searchParams.set("token", token)
+            if (callbackURL) verifyUrl.searchParams.set("callbackURL", callbackURL)
+            // full-page navigation required for better-auth Set-Cookie response header
+            window.location.href = verifyUrl.toString()
+          }}
+        >
           点击登录
         </Button>
       </div>
