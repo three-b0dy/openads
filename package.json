@@ -7,7 +7,7 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "turbo build",
+    "build": "cd ../.. && bunx turbo build --filter=@openads/app",
     "dev": "turbo dev",
     "lint": "oxlint",
     "format": "oxfmt --write .",
