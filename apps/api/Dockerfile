@@ -1,13 +1,15 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1.3.14-alpine AS base
 WORKDIR /app
 
-# Copy the entire monorepo into the container
-# We rely on .dockerignore to exclude node_modules, .env files, and build artifacts
+# Copy the entire monorepo into the container.
+# We rely on .dockerignore to exclude node_modules, .env files, and build artifacts.
 COPY . .
 
-# Install dependencies for the monorepo.
-# This will also run the postinstall script (db:generate) to generate the Prisma client.
-RUN bun install --frozen-lockfile
+# Install dependencies. --ignore-scripts skips postinstall (db:generate runs separately).
+RUN bun install --ignore-scripts
+
+# Generate Prisma client after dependencies are installed.
+RUN bun run db:generate
 
 # Set environment to production
 ENV NODE_ENV=production

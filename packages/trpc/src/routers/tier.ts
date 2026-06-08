@@ -241,7 +241,7 @@ export const tierRouter = router({
             features: true,
             prices: {
               where: { isActive: true, stripePriceId: { not: null } },
-              orderBy: [{ interval: "asc" }, { amount: "amount" }],
+              orderBy: [{ interval: "asc" }, { amount: "asc" }],
               select: {
                 id: true,
                 interval: true,
