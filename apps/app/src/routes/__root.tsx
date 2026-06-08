@@ -46,6 +46,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   beforeLoad: async ({ context: { trpc }, location: { pathname, searchStr } }) => {
     if (
       pathname === "/login" ||
+      pathname === "/magic-link-confirm" ||
       pathname === "/embed" ||
       pathname.startsWith("/embed/") ||
       pathname.startsWith("/advertise/")
