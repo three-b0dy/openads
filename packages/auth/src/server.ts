@@ -45,6 +45,11 @@ export function createAuthServer(config: AuthConfig) {
       database: {
         generateId: false,
       },
+
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: ".tabslate.com",
+      },
     },
 
     trustedOrigins: [config.APP_URL],

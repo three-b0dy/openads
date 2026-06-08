@@ -30,10 +30,10 @@ function TiersEditPage() {
         workspaceId={workspaceId}
         tier={tier}
         nextUrl={{ from: Route.fullPath, to: ".." }}
-        className="mt-4"
+        className="mt-4 w-full"
       />
 
-      <TierPriceList workspaceId={workspaceId} tier={tier} />
+      <TierPriceList workspaceId={workspaceId} tier={tier} className="w-full" />
     </Stack>
   )
 }

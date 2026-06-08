@@ -4,7 +4,6 @@ import { Hono } from "hono"
 import { showRoutes } from "hono/dev"
 import { createContext } from "~/context"
 import { env } from "~/env"
-import { cookieSameSiteMiddleware } from "~/middleware/cookie-samesite"
 import { corsMiddleware } from "~/middleware/cors"
 import { onError } from "~/middleware/on-error"
 import { logRoute } from "~/routes/log"
@@ -22,7 +21,6 @@ app.get("/", c => c.text("OpenAds API"))
 // Middlewares
 app.use("*", loggerMiddleware)
 app.use("*", corsMiddleware)
-app.use("/api/auth/*", cookieSameSiteMiddleware)
 
 // TRPC
 app.use(
