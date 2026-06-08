@@ -4,6 +4,8 @@ import { env } from "~/env"
 import { emails } from "./emails"
 import { logger } from "./logger"
 
+const emailEnabled = !!(env.AWS_SES_ACCESS_KEY_ID && env.AWS_SES_SECRET_ACCESS_KEY)
+
 export const auth = createAuthServer({
   APP_URL: env.APP_URL,
   enableRegistration: env.ENABLE_REGISTRATION,
@@ -29,11 +31,18 @@ export const auth = createAuthServer({
       if (isSameOrigin) confirmUrl.searchParams.set("callbackURL", callbackURL)
     }
 
-    if (env.NODE_ENV !== "production") {
-      logger.info("Magic link", { email, url: confirmUrl.toString() })
+    const confirmUrlStr = confirmUrl.toString()
+
+    if (!emailEnabled) {
+      logger.info("Magic link (email disabled, use this URL to sign in)", { email, url: confirmUrlStr })
+      return
     }
 
-    const rendered = await renderMagicLink({ url: confirmUrl.toString() })
+    if (env.NODE_ENV !== "production") {
+      logger.info("Magic link", { email, url: confirmUrlStr })
+    }
+
+    const rendered = await renderMagicLink({ url: confirmUrlStr })
     await emails.send({
       to: email,
       subject: "Sign in to OpenAds",
