@@ -39,7 +39,7 @@ ENV VITE_BASE_URL=$VITE_BASE_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 # 编译前端 SPA 应用 (产物保存在 apps/app/dist)
-RUN bun run build --filter=@openads/app
+RUN bunx turbo build --filter=@openads/app
 
 
 # ==========================================
