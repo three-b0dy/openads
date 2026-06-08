@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://openads-api.tabslate.com/api/:path*" },
+    { "source": "/trpc/:path*", "destination": "https://openads-api.tabslate.com/trpc/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
