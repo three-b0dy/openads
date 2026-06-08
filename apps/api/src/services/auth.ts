@@ -1,8 +1,8 @@
 import { createAuthServer } from "@openads/auth/server"
 import { renderMagicLink } from "@openads/emails"
 import { env } from "~/env"
-import { logger } from "~/services/logger"
 import { emails } from "./emails"
+import { logger } from "./logger"
 
 export const auth = createAuthServer({
   APP_URL: env.APP_URL,
@@ -27,6 +27,10 @@ export const auth = createAuthServer({
       const isSameOrigin =
         callbackURL.startsWith("/") || callbackURL.startsWith(env.APP_URL)
       if (isSameOrigin) confirmUrl.searchParams.set("callbackURL", callbackURL)
+    }
+
+    if (env.NODE_ENV !== "production") {
+      logger.info("Magic link", { email, url: confirmUrl.toString() })
     }
 
     const rendered = await renderMagicLink({ url: confirmUrl.toString() })
