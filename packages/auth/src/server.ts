@@ -45,10 +45,6 @@ export function createAuthServer(config: AuthConfig) {
       database: {
         generateId: false,
       },
-
-      crossSubDomainCookies: {
-        enabled: true,
-      },
     },
 
     trustedOrigins: [config.APP_URL],

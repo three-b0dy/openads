@@ -1,17 +1,25 @@
 import { createMiddleware } from "hono/factory"
 
-// better-auth hardcodes SameSite=Lax, which blocks cross-origin fetch requests
-// from sending cookies. This middleware rewrites auth cookies to SameSite=None; Secure
-// so the session cookie is included in cross-origin requests from the frontend.
+// better-auth hardcodes SameSite=Lax, blocking cross-origin fetch from sending cookies.
+// We rebuild the Response with SameSite=None; Secure so cross-origin requests include it.
 export const cookieSameSiteMiddleware = createMiddleware(async (c, next) => {
   await next()
 
-  const setCookieHeaders = c.res.headers.getSetCookie()
-  if (setCookieHeaders.length === 0) return
+  const original = c.res
+  const setCookies = original.headers.getSetCookie()
+  if (setCookies.length === 0) return
 
-  c.res.headers.delete("set-cookie")
-  for (const cookie of setCookieHeaders) {
-    const rewritten = cookie.replace(/;\s*SameSite=Lax/gi, "; SameSite=None; Secure")
-    c.res.headers.append("set-cookie", rewritten)
+  const headers = new Headers()
+  original.headers.forEach((value, key) => {
+    if (key.toLowerCase() !== "set-cookie") headers.append(key, value)
+  })
+  for (const cookie of setCookies) {
+    headers.append("set-cookie", cookie.replace(/;\s*SameSite=Lax/gi, "; SameSite=None; Secure"))
   }
+
+  c.res = new Response(original.body, {
+    status: original.status,
+    statusText: original.statusText,
+    headers,
+  })
 })
